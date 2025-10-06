@@ -1,12 +1,15 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from server.openrouter_client import chat_completion
-from server.models import *
+from server.models import (
+    SymptomInput, TriageOut, AdviceOut, ReferralOut, RxDraftOut
+)
 import re, json, os
+from json_repair import repair_json
 
 app = FastAPI(title="AI Doctor Backend (OpenRouter)")
 
-# --- CORS (dev-friendly) ---
+# ---------- CORS (dev-friendly; tighten in prod) ----------
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
@@ -16,7 +19,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Simple rules: triage red flags ---
+# ---------- Simple request logger ----------
+@app.middleware("http")
+async def log_requests(request, call_next):
+    print(">>", request.method, request.url.path)
+    try:
+        resp = await call_next(request)
+        print("<<", resp.status_code, request.url.path)
+        return resp
+    except Exception as e:
+        print("!!", request.url.path, repr(e))
+        raise
+
+# ---------- Rules & helpers ----------
 RED_FLAGS = [
     r"\b(chest pain|pressure in chest)\b",
     r"\b(short(ness)? of breath|difficulty breathing)\b",
@@ -26,8 +41,13 @@ RED_FLAGS = [
     r"\b(suicidal|kill myself|end my life)\b",
 ]
 
+PATIENT_RX_BLOCK = re.compile(
+    r"\b(take|start|increase|decrease)\b.*\b(mg|tablet|capsule|ml)\b",
+    re.I
+)
+
 def triage_rules(text: str) -> TriageOut:
-    t = text.lower()
+    t = (text or "").lower()
     red = [p for p in RED_FLAGS if re.search(p, t)]
     if red:
         return TriageOut(
@@ -43,43 +63,139 @@ def triage_rules(text: str) -> TriageOut:
         disclaimer="This is not a diagnosis. If symptoms worsen, seek medical care."
     )
 
-# --- Patient safety: block dosing to patients ---
-PATIENT_RX_BLOCK = re.compile(r"\b(take|start|increase|decrease)\b.*\b(mg|tablet|capsule|ml)\b", re.I)
+def parse_or_repair(raw: str) -> dict:
+    """Strict parse; if fails, attempt repair; else raise 502 with preview."""
+    raw = (raw or "").strip()
+    if not raw:
+        raise HTTPException(502, "LLM returned empty response")
 
-def require_json(output: str):
+    # strip triple-backtick fences if present
+    if raw.startswith("```"):
+        # Remove surrounding backticks
+        raw = raw.strip("`")
+        # Remove a leading 'json' language tag if present
+        if raw.lower().startswith("json"):
+            raw = raw.split("\n", 1)[1] if "\n" in raw else ""
+
+    # Attempt strict parse
     try:
-        return json.loads(output)
+        return json.loads(raw)
     except json.JSONDecodeError:
-        raise HTTPException(502, f"Model did not return valid JSON: {output[:200]}")
+        pass
 
+    # Attempt repair
+    try:
+        fixed = repair_json(raw)
+        return json.loads(fixed)
+    except Exception:
+        raise HTTPException(status_code=502, detail=f"Model did not return valid JSON: {raw[:300]}")
+
+def require_json_with_retry(build_messages_fn) -> dict:
+    """Call LLM -> parse; if fail, one-shot 'convert to JSON' retry; else raise."""
+    # 1st try
+    raw = chat_completion(build_messages_fn())
+    try:
+        return parse_or_repair(raw)
+    except HTTPException:
+        # Retry: ask the model to convert exactly this text to valid JSON
+        fixer_msgs = [
+            {"role": "system",
+             "content": "Convert the user's text into valid, minified JSON ONLY. No prose, no markdown."},
+            {"role": "user", "content": raw or ""}
+        ]
+        raw2 = chat_completion(fixer_msgs, temperature=0.0)
+        return parse_or_repair(raw2)   # will raise HTTPException if still invalid
+
+# ---------- Routes ----------
 @app.get("/health")
 def health():
     return {"ok": True}
 
 @app.post("/triage", response_model=TriageOut)
-def route_trage(inp: SymptomInput):
+def route_triage(inp: SymptomInput):
     return triage_rules(inp.symptoms)
 
 @app.post("/advice", response_model=AdviceOut)
 def route_advice(inp: SymptomInput):
     triage = triage_rules(inp.symptoms)
     if triage.risk == "emergency":
+        # Always raise, never return None if blocked
         raise HTTPException(400, "Possible emergency. Call emergency services now.")
 
-    system = ("You are a clinical decision support assistant. "
-              "Do NOT diagnose. Do NOT provide medication names/doses to patients. "
-              "Return ONLY valid JSON with keys: advice[], when_to_seek_care[], disclaimer.")
-    user = (f"Age: {inp.age}\nSex: {inp.sex}\nSymptoms: {inp.symptoms}\n"
+    def build_messages():
+        system = (
+            "You are a clinical decision support assistant for patients. "
+            "NEVER diagnose. NEVER provide medication names/doses to patients. "
+            "Return JSON ONLY with keys: advice[], when_to_seek_care[], disclaimer."
+        )
+        user = (
+            f"Age: {inp.age}\nSex: {inp.sex}\nSymptoms: {inp.symptoms}\n"
             f"Duration: {inp.duration}\nMeds: {inp.meds}\nConditions: {inp.conditions}\n"
-            "JSON shape:\n{\n  \"advice\":[{\"step\":\"string\",\"details\":\"string\"}],\n"
-            "  \"when_to_seek_care\":[\"string\"],\n  \"disclaimer\":\"string\"\n}")
+            "Schema example:\n"
+            "{"
+            "\"advice\":[{\"step\":\"Hydration\",\"details\":\"Small sips of water.\"}],"
+            "\"when_to_seek_care\":[\"Trouble breathing\"],"
+            "\"disclaimer\":\"This is not a diagnosis.\""
+            "}"
+        )
+        return [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ]
 
-    content = chat_completion(
-        messages=[{"role":"system","content":system},{"role":"user","content":user}],
-        temperature=0.2,
-        response_format={"type":"json_object"}  # JSON-mode hint if supported
-    )
-    data = require_json(content)
+    data = require_json_with_retry(build_messages)
 
-    # post-filter: block dosing language accidentally shown to patient
-    all_text = " ".join([f"{x.get('step','')} {x.get('details','')}" for x in data.get("advice", [])])
+    # Post-filter: block dosing in patient-facing advice
+    full = " ".join(f"{x.get('step','')} {x.get('details','')}" for x in data.get("advice", []))
+    if PATIENT_RX_BLOCK.search(full):
+        raise HTTPException(400, "Medication instructions to patients are not allowed.")
+
+    return AdviceOut(**data)
+
+@app.post("/referrals", response_model=ReferralOut)
+def route_referrals(inp: SymptomInput):
+    def build_messages():
+        system = (
+            "You assist clinicians by drafting specialist referrals. "
+            "JSON ONLY; no patient instructions; no dosing."
+        )
+        user = (
+            f"Age: {inp.age}\nSymptoms: {inp.symptoms}\nConditions: {inp.conditions}\n"
+            "Schema example:\n"
+            "{"
+            "\"suggested_specialties\":[{\"name\":\"Pulmonology\",\"reason\":\"Chronic cough\"}],"
+            "\"pre_referral_workup\":[\"Chest X-ray\",\"Spirometry\"],"
+            "\"priority\":\"routine\""
+            "}"
+        )
+        return [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ]
+
+    data = require_json_with_retry(build_messages)
+    return ReferralOut(**data)
+
+@app.post("/rx_draft", response_model=RxDraftOut)
+def route_rx(inp: SymptomInput):
+    def build_messages():
+        system = (
+            "Clinician-only medication class draft. No dosing. JSON ONLY."
+        )
+        user = (
+            f"Age: {inp.age}\nSymptoms: {inp.symptoms}\nMeds: {inp.meds}\nConditions: {inp.conditions}\n"
+            "Schema example:\n"
+            "{"
+            "\"candidates\":[{\"drug_class\":\"Inhaled corticosteroid\",\"example\":\"budesonide DPI\","
+            "\"use_case\":\"Persistent asthma\",\"contraindications\":[\"hypersensitivity\"],"
+            "\"monitoring\":[\"symptom diary\"]}],"
+            "\"notes\":\"Draft for clinician review—do not display to patient.\""
+            "}"
+        )
+        return [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ]
+
+    data = require_json_with_retry(build_messages)
+    return RxDraftOut(**data)
