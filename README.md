@@ -198,7 +198,7 @@ OLLAMA_URL=http://host.docker.internal:11434
 
 ## 🧑‍💻 Contributors
 **Project Lead:** [William J. Brashear](https://github.com/joebrashear31)  
-**Mentorship Program:** Google Developer Group (GDG) Tampa Bay  
+**Mentorship Program:** Google Developer Group (GDG) at the University of South Florida
 
 ---
 
