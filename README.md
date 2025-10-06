@@ -184,14 +184,11 @@ OLLAMA_URL=http://host.docker.internal:11434
 ---
 
 ### **🎉 November 15th – GDG DevFest**
-- Showcase the **AI Doctor App** demo and mentorship outcomes at GDG DevFest 2025!  
-- Highlight clinical AI safety, triage reasoning, and UI/UX integration.  
 
 ---
 
 ### **🏁 November 17th – End of Semester**
 - Wrap-up and reflect with mentors.  
-- Continue project development into **Phase 2 (Clinician Portal + HIPAA Compliance)**.  
 - Maintain communication with mentors for ongoing feedback and research alignment.  
 
 
