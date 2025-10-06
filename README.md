@@ -132,56 +132,73 @@ OLLAMA_URL=http://host.docker.internal:11434
 
 ---
 
-## 🗓 GDG Mentorship Sprint Plan (Oct 6 – Nov 30, 2025)
+## 🗓 **Updated Project Timeline (GDG Mentorship – Oct to Nov 2025)**
 
-Week 1 (Oct 6 – Oct 12, 2025) – Cloud Backend & API Hosting
-• Deploy the existing FastAPI backend to a cloud provider (Azure App Service, AWS ECS, or Google Cloud Run).
-• Configure environment variables securely in the cloud environment.
-• Verify health check and all /triage, /advice, /referrals, /rx_draft routes externally.
-• Update React Native app BASE_URL to point to the hosted API.
-
-Week 2 (Oct 13 – Oct 19, 2025) – Authentication & Access Control
-• Implement clinician and patient login portals (JWT or Firebase Auth).
-• Create user roles (patient, clinician) and secure routes accordingly.
-• Add backend middleware to log all API requests by user role and timestamp.
-• Add basic UI for login and account creation in Expo.
-
-Week 3 (Oct 20 – Oct 26, 2025) – EHR Integration (FHIR API)
-• Research and integrate public EHR API endpoints (Epic, Cerner, or Google Cloud Healthcare FHIR).
-• Implement endpoints to pull anonymized or mock patient data for testing.
-• Add environment variable toggles to enable or disable EHR sync.
-• Ensure compliance with privacy standards (no PHI stored locally).
-
-Week 4 (Oct 27 – Nov 2, 2025) – RAG Medical Knowledge Retrieval
-• Implement Retrieval-Augmented Generation (RAG) pipeline using medical literature (e.g., PubMed, CDC).
-• Host vector database (FAISS, Chroma, or Pinecone).
-• Modify /advice endpoint to enrich LLM context with retrieved references.
-• Test factual grounding improvements vs baseline responses.
-
-Week 5 (Nov 3 – Nov 9, 2025) – Symptom Tracking & Analytics Dashboard
-• Add frontend charts for tracking symptoms over time (React Native Charts or Recharts).
-• Log user interactions and triage results in Firestore or local DB.
-• Build a clinician dashboard for visualizing condition trends.
-• Integrate optional push notifications or reminders.
-
-Week 6 (Nov 10 – Nov 16, 2025) – Security, Compliance & On-Device LLM Support
-• Implement encryption for stored health data and enforce consent flow.
-• Add Terms of Use and Privacy Policy screens with acknowledgment tracking.
-• Explore switching LLM provider from OpenRouter → Ollama for offline inference.
-• Final mobile testing (iOS, Android, physical devices) and demo deployment.
-• Prepare final presentation of project to mentor!
-
-November 15th – GDG DevFest!
-
-November 17th - End of Semester
-Continue to talk to Mentors for advice/questions
-
+### **Week 1 (Oct 6 – Oct 12, 2025) – Cloud Backend & API Hosting**
+- Deploy the existing FastAPI backend to a cloud provider (Azure App Service, AWS ECS, or Google Cloud Run).  
+- Configure environment variables securely in the cloud environment.  
+- Verify health check and all `/triage`, `/advice`, `/referrals`, `/rx_draft` routes externally.  
+- Update React Native app `BASE_URL` to point to the hosted API.  
 
 ---
 
+### **Week 2 (Oct 13 – Oct 19, 2025) – Authentication & Access Control**
+- Implement clinician and patient login portals (JWT or Firebase Auth).  
+- Create user roles (`patient`, `clinician`) and secure routes accordingly.  
+- Add backend middleware to log all API requests by user role and timestamp.  
+- Add basic UI for login and account creation in Expo.  
+
+---
+
+### **Week 3 (Oct 20 – Oct 26, 2025) – EHR Integration (FHIR API)**
+- Research and integrate public EHR API endpoints (Epic, Cerner, or Google Cloud Healthcare FHIR).  
+- Implement endpoints to pull anonymized or mock patient data for testing.  
+- Add environment variable toggles to enable or disable EHR sync.  
+- Ensure compliance with privacy standards (no PHI stored locally).  
+
+---
+
+### **Week 4 (Oct 27 – Nov 2, 2025) – RAG Medical Knowledge Retrieval**
+- Implement Retrieval-Augmented Generation (RAG) pipeline using medical literature (e.g., PubMed, CDC).  
+- Host vector database (FAISS, Chroma, or Pinecone).  
+- Modify `/advice` endpoint to enrich LLM context with retrieved references.  
+- Test factual grounding improvements vs baseline responses.  
+
+---
+
+### **Week 5 (Nov 3 – Nov 9, 2025) – Symptom Tracking & Analytics Dashboard**
+- Add frontend charts for tracking symptoms over time (React Native Charts or Recharts).  
+- Log user interactions and triage results in Firestore or local DB.  
+- Build a clinician dashboard for visualizing condition trends.  
+- Integrate optional push notifications or reminders.  
+
+---
+
+### **Week 6 (Nov 10 – Nov 16, 2025) – Security, Compliance & On-Device LLM Support**
+- Implement encryption for stored health data and enforce consent flow.  
+- Add Terms of Use and Privacy Policy screens with acknowledgment tracking.  
+- Explore switching LLM provider from OpenRouter → Ollama for offline inference.  
+- Final mobile testing (iOS, Android, physical devices) and demo deployment.  
+- Prepare final presentation of project to mentor!  
+
+---
+
+### **🎉 November 15th – GDG DevFest**
+- Showcase the **AI Doctor App** demo and mentorship outcomes at GDG DevFest 2025!  
+- Highlight clinical AI safety, triage reasoning, and UI/UX integration.  
+
+---
+
+### **🏁 November 17th – End of Semester**
+- Wrap-up and reflect with mentors.  
+- Continue project development into **Phase 2 (Clinician Portal + HIPAA Compliance)**.  
+- Maintain communication with mentors for ongoing feedback and research alignment.  
+
+
+
 ## 🧑‍💻 Contributors
-**Tech Lead:** [William J. Brashear](https://github.com/joebrashear31)  
-**Mentorship Program:** Google Developer Group (GDG) at the University of South Florida
+**Project Lead:** [William J. Brashear](https://github.com/joebrashear31)  
+**Mentorship Program:** Google Developer Group (GDG) Tampa Bay  
 
 ---
 
