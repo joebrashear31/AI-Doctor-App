@@ -11,7 +11,7 @@ A mobile-first healthcare assistant built with **React Native (Expo)** and **Fas
 
 ## 🧠 Objective
 The goal of the **AI Doctor App** is to empower patients with safe, responsible, AI-guided triage and health suggestions — while supporting clinicians through explainable AI workflows.  
-This project is part of the **Google Developer Group (GDG) Mentorship Program**, developed as a capstone for the Fall 2025 cycle and showcased at **GDG DevFest 2025**.
+This project is part of the **Google Developer Group (GDG) Mentorship Program**, developed as a capstone for the Fall 2025 cycle**.
 
 ---
 
