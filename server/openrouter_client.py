@@ -1,54 +1,73 @@
-import os
-import requests
+# ------------------------------------------------------
+# Step 1: Load environment variables from .env file
+# ------------------------------------------------------
+# We use the python-dotenv package to automatically load
+# variables like OPENROUTER_API_KEY, APP_REFERER, etc.
+# from your local .env file into os.environ.
+# This makes development and local testing much easier.
+from dotenv import load_dotenv
+load_dotenv()  # so local runs pick up .env
+import os, requests
 
-# Required env
-OPENROUTER_API_KEY = os.environ["OPENROUTER_API_KEY"]
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+if not OPENROUTER_API_KEY or not OPENROUTER_API_KEY.startswith("sk-or-"):
+    raise RuntimeError("OPENROUTER_API_KEY missing or malformed.")
 
-# Optional env with defaults for local dev
+
+# ------------------------------------------------------
+# Step 2: Import standard libraries and dependencies
+# ------------------------------------------------------
+# os → access environment variables
+# requests → send HTTP requests to the OpenRouter API
+import os, requests
+
+# ------------------------------------------------------
+# Step 3: Read the required API variables from environment
+# ------------------------------------------------------
+# These should all be set in your .env file (or docker-compose env_file)
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 OPENROUTER_BASE = os.getenv("OPENROUTER_BASE", "https://openrouter.ai/api/v1")
 APP_REFERER = os.getenv("APP_REFERER", "http://localhost:8000")
 APP_TITLE = os.getenv("APP_TITLE", "AI Doctor App")
 
-# Default model (you can override via env)
-MODEL = os.getenv("MODEL", "meta-llama/llama-3.3-70b-instruct:free")
+# ------------------------------------------------------
+# Step 4: Safety check — verify API key exists and is valid
+# ------------------------------------------------------
+# This helps catch missing or invalid keys early on startup.
+if not OPENROUTER_API_KEY or not OPENROUTER_API_KEY.startswith("sk-or-"):
+    raise RuntimeError(
+        "❌ Missing or invalid OPENROUTER_API_KEY.\n"
+        "Make sure your .env file is in the correct location and contains a valid key.\n"
+        "Example:\nOPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    )
 
-def chat_completion(messages, temperature: float = 0.1,
-                    response_format: dict | None = {"type": "json_object"},
-                    extra: dict | None = None) -> str:
-    """
-    Calls OpenRouter Chat Completions and returns assistant message content (string).
-    Adds a guardrail system message to enforce JSON-only output.
-    """
-    guard = {
-        "role": "system",
-        "content": (
-            "Return ONLY valid JSON. No prose, no comments, no markdown, no backticks. "
-            "If unsure, return an empty structure but keep valid JSON."
-        ),
-    }
-    msgs = [guard, *messages]
-
-    payload = {
-        "model": MODEL,
-        "messages": msgs,
-        "temperature": float(temperature),
-        "top_p": 1,
-    }
-    if response_format:
-        payload["response_format"] = response_format
-    if extra:
-        payload.update(extra)
-
+# ------------------------------------------------------
+# Step 5: Define the chat_completion function
+# ------------------------------------------------------
+# This function sends a POST request to OpenRouter's chat endpoint.
+# It uses your LLM model (e.g. meta-llama/llama-3.3-70b-instruct:free)
+# and returns the model’s response text.
+def chat_completion(messages, model="meta-llama/llama-3.3-70b-instruct:free"):
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "Content-Type": "application/json",
-        # Attribution headers (recommended by OpenRouter)
         "HTTP-Referer": APP_REFERER,
         "X-Title": APP_TITLE,
     }
 
-    url = f"{OPENROUTER_BASE}/chat/completions"
-    r = requests.post(url, json=payload, headers=headers, timeout=60)
-    r.raise_for_status()
+    payload = {
+        "model": model,
+        "messages": messages,
+        "max_tokens": 400,
+        "temperature": 0.5,
+    }
+
+    # Make the POST request to the API
+    r = requests.post(f"{OPENROUTER_BASE}/chat/completions", json=payload, headers=headers, timeout=60)
+    if not r.ok:
+        # If unauthorized or server error, print details
+        raise RuntimeError(f"OpenRouter API error {r.status_code}: {r.text[:500]}")
+
+    # Return the model’s text output
     data = r.json()
     return data["choices"][0]["message"]["content"]
